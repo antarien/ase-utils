@@ -65,7 +65,14 @@ message(STATUS "Configuring ${PROJECT_NAME} v${PROJECT_VERSION}")
 HEADER-ONLY LIBRARY
 Utility functions: dotenv, string manipulation, UUID, hashing.
 ]]
-add_library(${PROJECT_NAME} INTERFACE)
+add_library(${PROJECT_NAME} INTERFACE
+    #[[
+    UTILS
+    Core utility functions for environment, encoding, etc.
+    ]]
+    include/ase/utils/base64.hpp
+    include/ase/utils/dotenv.hpp
+)
 add_library(ase::utils ALIAS ${PROJECT_NAME})
 
 target_include_directories(${PROJECT_NAME}
