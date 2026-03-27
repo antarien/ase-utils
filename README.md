@@ -10,7 +10,7 @@ Part of [ASE - Antares Simulation Engine](../../..)
 
 ## Overview
 
-`ase-utils` provides foundational utilities for common tasks: loading environment variables from `.env` files and Base64 encoding/decoding. These header-only utilities are used across the engine for configuration management and data serialization.
+`ase-utils` provides foundational utilities for common tasks that don't warrant their own module: loading environment variables from `.env` files and Base64 encoding/decoding. The .env file loader parses KEY=VALUE pairs from a `.env` file at server startup, populating the process environment before any module reads its configuration — this is how MONGODB_URI, NEO4J_PASSWORD, and other secrets are injected in development without hardcoding. The Base64 encoder/decoder handles binary-to-text conversion for JWT token payloads in the auth system, binary data embedding in JSON messages, and asset data encoding for network transmission. Both utilities are header-only with zero ASE dependencies, following the Layer 0 foundation principle that any module can use them without introducing coupling. The .env loader supports comments (# prefix), empty lines, quoted values, and variable expansion — matching the dotenv convention used across the Node.js ecosystem for the ase-auth service compatibility. As the engine grows, additional foundational utilities (UUID generation, hash functions, string manipulation) may be added to this module rather than creating separate single-purpose libraries.
 
 ## Features
 
