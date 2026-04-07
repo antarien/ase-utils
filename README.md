@@ -82,7 +82,7 @@ MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net
 MONGODB_DATABASE=ase_engine
 
 # Quoted values (quotes are removed)
-NEO4J_URI="neo4j+s://xxx.databases.neo4j.io"
+NEO4J_URI="neo4j+s://bolt.graph.ase.antarien.com"
 NEO4J_USER='neo4j'
 
 # Inline comments
