@@ -180,7 +180,7 @@ Config load_config() {
     // Optional with defaults
     config.mongodb_database = dotenv::get("MONGODB_DATABASE", "ase_engine");
     config.http_port = std::stoi(dotenv::get("HTTP_PORT", "8080"));
-    config.signaling_port = std::stoi(dotenv::get("SIGNALING_PORT", "8081"));
+    config.signaling_port = std::stoi(dotenv::get("SIGNALING_PORT", "9004"));
 
     // Neo4j (optional)
     if (auto uri = dotenv::get("NEO4J_URI")) {
