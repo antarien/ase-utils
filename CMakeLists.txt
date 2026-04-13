@@ -72,6 +72,7 @@ add_library(${PROJECT_NAME} INTERFACE
     ]]
     include/ase/utils/base64.hpp
     include/ase/utils/dotenv.hpp
+    include/ase/utils/fs.hpp
     include/ase/utils/strops.hpp
 )
 add_library(ase::utils ALIAS ${PROJECT_NAME})

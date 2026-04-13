@@ -74,4 +74,36 @@ inline bool str_equal(const char* a, const char* b, uint32_t max_len) {
     return true;
 }
 
+/**
+ * Format the low 24 bits of rgb as "#RRGGBB" into out.
+ * out_size must be at least 8 (7 chars + null terminator). Higher bits are ignored.
+ */
+inline void format_hex_color(char* out, uint32_t out_size, uint32_t rgb) {
+    if (out_size < 8) {
+        if (out_size > 0) out[0] = '\0';
+        return;
+    }
+    const char digits[] = "0123456789ABCDEF";
+    out[0] = '#';
+    out[1] = digits[(rgb >> 20) & 0xF];
+    out[2] = digits[(rgb >> 16) & 0xF];
+    out[3] = digits[(rgb >> 12) & 0xF];
+    out[4] = digits[(rgb >>  8) & 0xF];
+    out[5] = digits[(rgb >>  4) & 0xF];
+    out[6] = digits[(rgb      ) & 0xF];
+    out[7] = '\0';
+}
+
+/**
+ * Format three 0..255 channel values as "#RRGGBB" into out.
+ * out_size must be at least 8. Channels above 255 are clamped.
+ */
+inline void format_hex_rgb(char* out, uint32_t out_size,
+                           uint32_t r, uint32_t g, uint32_t b) {
+    if (r > 255) r = 255;
+    if (g > 255) g = 255;
+    if (b > 255) b = 255;
+    format_hex_color(out, out_size, (r << 16) | (g << 8) | b);
+}
+
 }  // namespace ase::utils
