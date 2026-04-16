@@ -102,6 +102,23 @@ inline std::string filename_of(std::string_view path) {
     return p.filename().string();
 }
 
+/**
+ * Remove the filesystem entry at path. Works for both regular files and
+ * directories; directory removal is recursive. Returns true on success (or
+ * when the entry did not exist), false on error (permission denied,
+ * cross-device link, etc.).
+ */
+inline bool remove(std::string_view path) {
+    std::error_code ec;
+    std::filesystem::path p((std::string(path)));
+    if (std::filesystem::is_directory(p, ec)) {
+        std::filesystem::remove_all(p, ec);
+    } else {
+        std::filesystem::remove(p, ec);
+    }
+    return !ec;
+}
+
 /** Return path relative to base. relative_to("/a/b/c", "/a") -> "b/c". */
 inline std::string relative_to(std::string_view path, std::string_view base) {
     std::error_code ec;
