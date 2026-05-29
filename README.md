@@ -63,7 +63,7 @@ int main() {
     }
 
     // Get with default value
-    std::string port = dotenv::get("HTTP_PORT", "8080");
+    std::string port = dotenv::get("HTTP_PORT", "8090");
 
     // Check if variable exists
     if (dotenv::has("NEO4J_URI")) {
@@ -86,7 +86,7 @@ NEO4J_URI="neo4j+s://bolt.graph.ase.antarien.com"
 NEO4J_USER='neo4j'
 
 # Inline comments
-HTTP_PORT=8080 # Default HTTP port
+HTTP_PORT=8090 # Default HTTP port
 
 # Empty lines are ignored
 
@@ -179,7 +179,7 @@ Config load_config() {
 
     // Optional with defaults
     config.mongodb_database = dotenv::get("MONGODB_DATABASE", "ase_engine");
-    config.http_port = std::stoi(dotenv::get("HTTP_PORT", "8080"));
+    config.http_port = std::stoi(dotenv::get("HTTP_PORT", "8090"));
     config.signaling_port = std::stoi(dotenv::get("SIGNALING_PORT", "9004"));
 
     // Neo4j (optional)
