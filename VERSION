@@ -39,10 +39,10 @@
 #   stable = Production ready (set manually)
 #
 # ==============================================================================
-ASE_UTILS=00.00.18.00018
+ASE_UTILS=00.00.20.00020
 ASE_UTILS_NAME=Utilities
 ASE_UTILS_DESC=UUID, hashing, string utilities
 ASE_UTILS_LAYER=0
 ASE_UTILS_STATUS=init
 ASE_UTILS_CREATED=2025-12-15
-ASE_UTILS_UPDATED=2026-04-16
+ASE_UTILS_UPDATED=2026-05-29
