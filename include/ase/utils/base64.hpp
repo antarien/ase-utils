@@ -56,6 +56,35 @@ struct Base64 {
         }
         return result;
     }
+
+    // URL-safe decode (RFC 4648 section 5, no padding) into a caller buffer. Returns the decoded byte
+    // count (capped at out_cap), or 0 on an invalid character. A ptr+len interface so ECS-system callers
+    // (no std::vector) can decode a JWT segment in place. '-' maps to 62, '_' to 63; the standard '+'/'/'
+    // alphabet is also accepted so a non-url-safe segment still decodes.
+    static uint32_t decode_url_into(const char* in, uint32_t in_len, uint8_t* out, uint32_t out_cap) {
+        std::array<int, 256> table{};
+        std::fill(table.begin(), table.end(), -1);
+        for (int i = 0; i < 64; ++i) table[static_cast<unsigned char>(CHARS[i])] = i;
+        table[static_cast<unsigned char>('-')] = 62;
+        table[static_cast<unsigned char>('_')] = 63;
+
+        uint32_t o = 0;
+        uint32_t val = 0;
+        int bits = 0;
+        for (uint32_t i = 0; i < in_len; ++i) {
+            char c = in[i];
+            if (c == '=') break;
+            int v = table[static_cast<unsigned char>(c)];
+            if (v < 0) return 0;
+            val = (val << 6) | static_cast<uint32_t>(v);
+            bits += 6;
+            if (bits >= 8) {
+                bits -= 8;
+                if (o < out_cap) out[o++] = static_cast<uint8_t>((val >> bits) & 0xFF);
+            }
+        }
+        return o;
+    }
 };
 
 }  // namespace ase::utils
