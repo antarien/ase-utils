@@ -75,6 +75,57 @@ inline bool str_equal(const char* a, const char* b, uint32_t max_len) {
 }
 
 /**
+ * Append an unsigned decimal to dst — the bounded replacement for snprintf("%llu").
+ *
+ * Emits most-significant digit first (scale is the largest power of ten not
+ * exceeding v), so no reversal buffer is needed and zero renders as "0" without
+ * a special case. Truncates rather than overflowing, exactly like str_append.
+ */
+inline void str_append_u64(char* dst, uint32_t dst_size, uint64_t v) {
+    if (dst_size == 0) return;
+    uint32_t di = 0;
+    while (di < dst_size && dst[di] != '\0') ++di;
+    uint64_t scale = 1;
+    while (v / scale >= 10u) scale *= 10u;
+    while (di < dst_size - 1) {
+        dst[di++] = static_cast<char>('0' + static_cast<uint32_t>((v / scale) % 10u));
+        if (scale == 1) break;
+        scale /= 10u;
+    }
+    if (di < dst_size) dst[di] = '\0';
+}
+
+/**
+ * Append src to dst, SKIPPING the bytes that would break a quoted JSON string:
+ * the double quote, the backslash, and every ASCII control byte.
+ *
+ * This exists because documents are assembled from request data, and a single
+ * quote inside a user-supplied path or name would close the string early and
+ * let the caller write arbitrary fields into the document. Skipping rather than
+ * escaping keeps the output length bounded by the input length, which is what
+ * the fixed-size frame buffers downstream rely on.
+ */
+inline void str_append_json_safe(char* dst, uint32_t dst_size, const char* src) {
+    if (dst_size == 0) return;
+    uint32_t di = 0;
+    while (di < dst_size && dst[di] != '\0') ++di;
+    for (uint32_t si = 0; src[si] != '\0' && di < dst_size - 1; ++si) {
+        const char c = src[si];
+        if (c == '"' || c == '\\') continue;
+        if (static_cast<unsigned char>(c) < 32u) continue;
+        dst[di++] = c;
+    }
+    if (di < dst_size) dst[di] = '\0';
+}
+
+/** Copy src into dst with the JSON-breaking bytes skipped (see str_append_json_safe). */
+inline void str_copy_json_safe(char* dst, uint32_t dst_size, const char* src) {
+    if (dst_size == 0) return;
+    dst[0] = '\0';
+    str_append_json_safe(dst, dst_size, src);
+}
+
+/**
  * Format the low 24 bits of rgb as "#RRGGBB" into out.
  * out_size must be at least 8 (7 chars + null terminator). Higher bits are ignored.
  */
