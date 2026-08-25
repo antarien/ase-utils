@@ -8,8 +8,9 @@
  *
  * @module      ase-utils
  * @layer       0 (Foundation)
+ * @category    structure/datatype/textual
  * @created     2026-04-05
- * @modified    2026-04-05
+ * @modified    2026-08-20
  * @version     1.0.0
  */
 
@@ -28,8 +29,17 @@ inline void str_copy(char* dst, uint32_t dst_size, const char* src) {
     dst[i] = '\0';
 }
 
-/** Append src to dst with guaranteed null termination. dst_size is total buffer size. */
+/**
+ * Append src to dst with guaranteed null termination. dst_size is total buffer size.
+ *
+ * The dst_size == 0 guard closes a hole, it does not change behaviour: without it the
+ * `dst_size - 1` below wraps to UINT32_MAX, the loop condition holds, and a byte is written
+ * into dst[0] — a buffer the caller declared as empty. That was never defined behaviour, so
+ * no caller could have relied on it. str_copy and str_append_u64 carry the same guard; this
+ * one was the odd sibling out.
+ */
 inline void str_append(char* dst, uint32_t dst_size, const char* src) {
+    if (dst_size == 0) return;
     uint32_t di = 0;
     while (di < dst_size && dst[di] != '\0') ++di;
     uint32_t si = 0;
@@ -96,6 +106,87 @@ inline void str_append_u64(char* dst, uint32_t dst_size, uint64_t v) {
 }
 
 /**
+ * Append a SIGNED decimal to dst — the bounded replacement for snprintf("%lld").
+ *
+ * This exists because str_append_u64 takes uint64: handing it a negative int32 sign-extends
+ * it, and a value of -3 leaves as 18446744073709551613. That is not a crash but a plausible
+ * wrong number, which is worse — a line whose whole statement is "this address resolves to
+ * nothing" would then read "address 18446744071562067968" (GEOID_INVALID_CELL_AXIS is
+ * INT32_MIN, and the log lines that report it are exactly the ones that print the sentinel).
+ *
+ * The magnitude is formed over uint64, NOT over -v: negating INT64_MIN is undefined.
+ * ~u + 1 is the two's complement and yields exactly 9223372036854775808 for INT64_MIN.
+ *
+ * The dst_size == 0 guard is NOT redundant with the callees: str_append above has none, and
+ * with a zero size its `dst_size - 1` wraps to UINT32_MAX and the loop writes into dst[0].
+ */
+inline void str_append_i64(char* dst, uint32_t dst_size, int64_t v) {
+    if (dst_size == 0) return;
+    if (v < 0) {
+        str_append(dst, dst_size, "-");
+        str_append_u64(dst, dst_size, ~static_cast<uint64_t>(v) + 1u);
+        return;
+    }
+    str_append_u64(dst, dst_size, static_cast<uint64_t>(v));
+}
+
+/**
+ * Append a float with a FIXED number of decimals — the bounded replacement for
+ * snprintf("%.*f"). No locale, no printf, no exponent form.
+ *
+ * Three cases leave as a WORD instead of digits, because printing a number for a value that
+ * is not one hides exactly the defect one most wants to see:
+ *   nan   the value is not a number
+ *   inf   the value is infinite
+ *   huge  the value is FINITE but beyond uint64 and therefore out of reach here. Deliberately
+ *         NOT "inf": calling a finite number infinite is the same class of false statement
+ *         this function exists to prevent. The bound has to be there in any case — the
+ *         uint64 cast below would be undefined without it.
+ *
+ * decimals is capped at 9 for two independent reasons that meet at the same number: 10^20
+ * overflows the uint64 scale (a silent wrap, not a crash), and a float carries about seven
+ * significant digits, so anything beyond that would be invented precision.
+ */
+inline void str_append_f32(char* dst, uint32_t dst_size, float v, uint32_t decimals) {
+    if (dst_size == 0) return;
+    if (v != v) {  // NaN is the only value unequal to itself
+        str_append(dst, dst_size, "nan");
+        return;
+    }
+    if (v < 0.0f) {
+        str_append(dst, dst_size, "-");
+        v = -v;
+    }
+    if (!(v <= 340282346638528859811704183484516925440.0f)) {  // FLT_MAX; above it means inf
+        str_append(dst, dst_size, "inf");
+        return;
+    }
+    if (!(v < 18446744073709551616.0f)) {  // finite, but past what uint64 can hold
+        str_append(dst, dst_size, "huge");
+        return;
+    }
+    if (decimals > 9u) decimals = 9u;
+    uint64_t scale = 1;
+    for (uint32_t i = 0; i < decimals; ++i) scale *= 10u;
+    uint64_t whole = static_cast<uint64_t>(v);
+    uint64_t frac =
+        static_cast<uint64_t>((v - static_cast<float>(whole)) * static_cast<float>(scale) + 0.5f);
+    if (frac >= scale) {  // the rounding carried into the next integer
+        whole += 1u;
+        frac = 0u;
+    }
+    str_append_u64(dst, dst_size, whole);
+    if (decimals == 0u) return;
+    str_append(dst, dst_size, ".");
+    uint64_t probe = scale / 10u;
+    while (probe > frac && probe > 0u) {  // leading zeros of the fraction
+        str_append(dst, dst_size, "0");
+        probe /= 10u;
+    }
+    if (frac > 0u) str_append_u64(dst, dst_size, frac);
+}
+
+/**
  * Append src to dst, SKIPPING the bytes that would break a quoted JSON string:
  * the double quote, the backslash, and every ASCII control byte.
  *
@@ -155,6 +246,52 @@ inline void format_hex_rgb(char* out, uint32_t out_size,
     if (g > 255) g = 255;
     if (b > 255) b = 255;
     format_hex_color(out, out_size, (r << 16) | (g << 8) | b);
+}
+
+/**
+ * Take the next field of `text` up to the next `separator`, and advance `pos` past it.
+ *
+ *     uint32_t pos = 0;
+ *     const char* tok = nullptr;
+ *     uint32_t tok_len = 0;
+ *     while (str_split_next(text, len, ',', pos, &tok, &tok_len)) {
+ *         // tok points into text and is tok_len characters long — no copy, no allocation
+ *     }
+ *
+ * WHY THIS IS HERE AND NOT IN strmatch.hpp. Measured 2026-08-20 in core/ase-codegen: seven call
+ * sites ran a full regex engine to split a list at commas — std::sregex_token_iterator with -1
+ * over the pattern "\s*,\s*", six times built locally under two different names. Splitting at a
+ * fixed character is a string operation, not a pattern search; it belongs with str_copy and
+ * str_equal, and it needs no matcher at all. The surrounding whitespace those patterns also ate
+ * is left in place deliberately: every one of the seven call sites already trims its token, and
+ * trimming here would change what they receive.
+ *
+ * The field is NOT trimmed and NOT null-terminated — it is a view into `text`. A caller that
+ * needs a C string copies it out with str_copy.
+ *
+ * @return true while a field was produced. An empty field between two separators is a field and
+ *         is reported as one (length 0); the caller decides whether to skip it.
+ */
+constexpr bool str_split_next(const char* text, uint32_t text_len, char separator,
+                              uint32_t& pos, const char** field, uint32_t* field_len) {
+    if (text == nullptr || field == nullptr || field_len == nullptr) return false;
+    if (pos > text_len) return false;
+
+    const uint32_t begin = pos;
+    uint32_t end = pos;
+    while (end < text_len && text[end] != separator) {
+        ++end;
+    }
+
+    *field = text + begin;
+    *field_len = end - begin;
+
+    // THE ADVANCE. Past the separator when there is one, past the end otherwise — and `text_len
+    // + 1` is what makes the next call return false instead of handing out the same empty tail
+    // forever. A trailing separator therefore yields one final empty field and then stops, which
+    // is what "a,b," means: three fields, the last one empty.
+    pos = (end < text_len) ? end + 1 : text_len + 1;
+    return true;
 }
 
 }  // namespace ase::utils

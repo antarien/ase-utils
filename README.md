@@ -1,5 +1,7 @@
 # ase-utils
 
+**Design:** DSGN_016 (AEC — Engine-Kernsystem: Zeit, RNG, Strings)
+
 [![Layer](https://img.shields.io/badge/Layer-0%20Foundation-blue.svg)]()
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)]()
 [![Header Only](https://img.shields.io/badge/Header-Only-green.svg)]()
@@ -36,43 +38,52 @@ Header-only library - include what you need:
 
 ### Dotenv - Environment Configuration
 
-Load configuration from `.env` files at application startup:
+Load configuration from `.env` files at application startup.
+
+**Dieses Modul LIEST die Datei nicht mehr selbst (2026-08-22).** `dotenv::load()` gab es bis
+dahin, und es öffnete die Datei mit einem Eingabestrom — die einzigen zwei Verstöße, die
+`ase-utils` je hatte. Die Regel nennt `ase::fileio` als Ziel, aber ein Foundation-Modul bindet
+kein `ase::`-Ziel (siehe Abschnitt *Layer*). Also liest der **Rufer**, und dieses Modul parst
+und setzt. Die Aufteilung kostet eine Zeile und hält die Schichtgrenze.
 
 ```cpp
 #include <ase/utils/dotenv.hpp>
+#include <ase/fileio/text_reader.hpp>   // beim RUFER, nicht in ase-utils
 
 using namespace ase::utils;
 
 int main() {
-    // Load .env from current directory
-    if (dotenv::load() < 0) {
-        std::cerr << "Failed to load .env file" << std::endl;
+    // Der Rufer liest. file_exists VOR read_lines, weil eine leere Liste sonst
+    // "Datei fehlt" und "Datei leer" nicht unterscheidet.
+    if (!ase::fileio::file_exists(".env")) {
+        std::cerr << "No .env file in working directory" << std::endl;
         return 1;
     }
 
-    // Load from specific path
-    dotenv::load("/path/to/.env");
+    // Dieses Modul parst und setzt. Rückgabe: Anzahl gesetzter Variablen.
+    const auto lines = ase::fileio::read_lines(".env");
+    const int  count = dotenv::apply_lines(lines);
 
-    // Overwrite existing environment variables
-    dotenv::load(".env", true);  // true = overwrite
+    // Bestehende Umgebung gewinnt (Vorgabe). Zum Überschreiben:
+    // dotenv::apply_lines(lines, true);
 
-    // Get environment variables
-    auto db_uri = dotenv::get("MONGODB_URI");
-    if (db_uri) {
-        std::cout << "Database: " << *db_uri << std::endl;
-    }
+    // Einzelne Zeile parsen, ohne etwas zu setzen
+    auto [key, value] = dotenv::parse_line("HTTP_PORT=8090  # Kommentar");
 
-    // Get with default value
+    // Lesen mit Vorgabewert
     std::string port = dotenv::get("HTTP_PORT", "8090");
 
-    // Check if variable exists
+    // Nur Vorhandensein prüfen
     if (dotenv::has("NEO4J_URI")) {
         // ...
     }
 
-    return 0;
+    return count >= 0 ? 0 : 1;
 }
 ```
+
+Die einparametrige `dotenv::get("KEY")`, die einen optionalen Wert lieferte, ist ebenfalls
+gelöscht (2026-08-20) — sie hatte baumweit null Rufer. Es bleibt `get(key, default_value)`.
 
 ### .env File Format
 
@@ -163,19 +174,22 @@ struct Config {
 Config load_config() {
     using namespace ase::utils;
 
-    // Load environment variables
-    if (dotenv::load() < 0) {
+    // Load environment variables - der Rufer liest, dieses Modul parst und setzt
+    if (ase::fileio::file_exists(".env")) {
+        dotenv::apply_lines(ase::fileio::read_lines(".env"));
+    } else {
         std::cerr << "Warning: No .env file found, using defaults" << std::endl;
     }
 
     Config config;
 
-    // Required variables (throw if missing)
-    auto mongodb_uri = dotenv::get("MONGODB_URI");
-    if (!mongodb_uri) {
+    // Required variables (throw if missing). get() liefert IMMER einen String, deshalb
+    // entscheidet ein leerer Vorgabewert ueber "fehlt" - die optionale Ueberladung ist
+    // am 2026-08-20 geloescht worden, sie hatte keinen Rufer.
+    config.mongodb_uri = dotenv::get("MONGODB_URI", "");
+    if (config.mongodb_uri.empty()) {
         throw std::runtime_error("MONGODB_URI is required");
     }
-    config.mongodb_uri = *mongodb_uri;
 
     // Optional with defaults
     config.mongodb_database = dotenv::get("MONGODB_DATABASE", "ase_engine");
@@ -183,8 +197,8 @@ Config load_config() {
     config.signaling_port = std::stoi(dotenv::get("SIGNALING_PORT", "9004"));
 
     // Neo4j (optional)
-    if (auto uri = dotenv::get("NEO4J_URI")) {
-        config.neo4j_uri = *uri;
+    if (dotenv::has("NEO4J_URI")) {
+        config.neo4j_uri = dotenv::get("NEO4J_URI", "");
         config.neo4j_user = dotenv::get("NEO4J_USER", "neo4j");
         config.neo4j_password = dotenv::get("NEO4J_PASSWORD", "");
     }
@@ -355,18 +369,21 @@ git add .env  # DON'T DO THIS
 ### Application Configuration
 
 ```cpp
-// Good: Load once at startup
+// Good: einmal beim Start lesen und setzen
 int main() {
-    dotenv::load();
+    dotenv::apply_lines(ase::fileio::read_lines(".env"));
     Config config = load_config();
     // Use config throughout application
 }
 
-// Bad: Load multiple times
+// Bad: mehrfach
 void some_function() {
-    dotenv::load();  // Inefficient, only load once!
+    dotenv::apply_lines(ase::fileio::read_lines(".env"));  // liest die Datei erneut
 }
 ```
+
+Im Baum macht das genau eine Stelle: `kernel_env_ldr_sys.cpp` in `on_start`. Wer eine zweite
+braucht, hat vermutlich ein Konfigurationsproblem und kein Leseproblem.
 
 ### Base64 Usage
 

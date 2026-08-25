@@ -1,9 +1,29 @@
 #pragma once
 
+/**
+ * @file        base64.hpp
+ * @brief       Base64 encode/decode — standard and URL-safe alphabet
+ * @description Three entry points: encode() and decode() over owning containers for callers
+ *              that already hold one, and decode_url_into() as a ptr+len interface so an ECS
+ *              system can decode a JWT segment into its own buffer without a std::vector.
+ *
+ *              THE DECODE TABLES ARE PLAIN C ARRAYS, NOT std::array (2026-08-20). Both are
+ *              256 entries built on entry and read only inside the function that built them;
+ *              std::array bought nothing here but the forbidden dependency, and the loop that
+ *              fills them with -1 replaces a std::fill that pulled in <algorithm> as well.
+ *              Neither table escapes its function, so there is no size to carry around.
+ *
+ * @module      ase-utils
+ * @layer       0 (Foundation)
+ * @category    structure/format/encoding
+ * @created     2025-12-16
+ * @modified    2026-08-20
+ * @version     1.0.0
+ */
+
 #include <string>
 #include <vector>
 #include <cstdint>
-#include <array>
 
 namespace ase::utils {
 
@@ -35,8 +55,10 @@ struct Base64 {
         std::vector<uint8_t> result;
         result.reserve((encoded.size() * 3) / 4);
 
-        std::array<int, 256> decode_table{};
-        std::fill(decode_table.begin(), decode_table.end(), -1);
+        // -1 marks "not in the alphabet" - the loop below overwrites exactly the 64 valid
+        // codepoints, everything else stays rejected.
+        int decode_table[256];
+        for (int i = 0; i < 256; ++i) decode_table[i] = -1;
         for (int i = 0; i < 64; ++i) {
             decode_table[static_cast<unsigned char>(CHARS[i])] = i;
         }
@@ -62,8 +84,8 @@ struct Base64 {
     // (no std::vector) can decode a JWT segment in place. '-' maps to 62, '_' to 63; the standard '+'/'/'
     // alphabet is also accepted so a non-url-safe segment still decodes.
     static uint32_t decode_url_into(const char* in, uint32_t in_len, uint8_t* out, uint32_t out_cap) {
-        std::array<int, 256> table{};
-        std::fill(table.begin(), table.end(), -1);
+        int table[256];
+        for (int i = 0; i < 256; ++i) table[i] = -1;
         for (int i = 0; i < 64; ++i) table[static_cast<unsigned char>(CHARS[i])] = i;
         table[static_cast<unsigned char>('-')] = 62;
         table[static_cast<unsigned char>('_')] = 63;
