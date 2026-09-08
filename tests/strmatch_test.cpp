@@ -1,18 +1,35 @@
 /**
- * strmatch.hpp — Unit Tests
+ * =============================================================================
+ * ASE UTILS - strmatch.hpp Unit Tests
+ * =============================================================================
  *
- * 665 findings in ase-codegen point at this header, and 340 patterns will be rewritten
- * against it. A matcher without a case per feature would be the most dangerous file in the
- * tree, so every feature the measurement found is pinned here, and so is every feature that
- * was deliberately left out.
+ * @file        strmatch_test.cpp
+ * @brief       Case per feature of the constexpr string matcher, compile time and runtime.
+ * @description 665 findings in ase-codegen point at this header, and 340 patterns will be
+ *              rewritten against it. A matcher without a case per feature would be the most
+ *              dangerous file in the tree, so every feature the measurement found is pinned
+ *              here, and so is every feature that was deliberately left out.
  *
- * THE STATIC_ASSERTS ARE THE POINT, not decoration. str_match_search is constexpr, so the
- * compiler evaluates these cases while translating — a broken matcher fails the build
- * instead of failing a test run. The doctest cases below repeat the same ground at runtime
- * and add the ones that read more clearly as prose.
+ *              THE STATIC_ASSERTS ARE THE POINT, not decoration. str_match_search is
+ *              constexpr, so the compiler evaluates these cases while translating — a broken
+ *              matcher fails the build instead of failing a test run. The doctest cases below
+ *              repeat the same ground at runtime and add the ones that read more clearly as
+ *              prose.
  *
- * The doctest main is switched on from tests/CMakeLists.txt rather than from a define here,
- * so this file carries no macro definition of its own.
+ *              The doctest main is switched on from tests/CMakeLists.txt rather than from a
+ *              define here, so this file carries no macro definition of its own.
+ *
+ * -----------------------------------------------------------------------------
+ * META
+ * -----------------------------------------------------------------------------
+ * @module      ase-utils
+ * @layer       0 (Foundation)
+ * @category    structure/datatype/textual
+ * @created     2026-08-25
+ * @modified    2026-08-25
+ * @version     1.0.0
+ *
+ * =============================================================================
  */
 
 #include <doctest/doctest.h>
