@@ -11,8 +11,8 @@ ASE FOUNDATION BUILD CONFIGURATION
 @module      ase-utils
 @layer       0 (Foundation)
 @created     2025-12-15
-@modified    2026-01-30
-@version     00.00.05.00005 [poc]
+@modified    2026-09-08
+@version     00.00.24.00024 [init]
 
 CMAKE MODULE COMPLIANCE
 
