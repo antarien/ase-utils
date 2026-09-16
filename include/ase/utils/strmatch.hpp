@@ -2,6 +2,7 @@
 
 /**
  * @file        strmatch.hpp
+ * @design      DSGN_016
  * @brief       Pattern matching with capture groups — the ASE stand-in for std::regex
  * @description std::regex is validator-forbidden project-wide, and the rule text names
  *              ase::utils as the destination. Until 2026-08-20 that destination did not

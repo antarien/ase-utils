@@ -8,6 +8,7 @@
  *
  * @module      ase-utils
  * @layer       0 (Foundation)
+ * @design      DSGN_016
  * @category    structure/datatype/textual
  * @created     2026-04-05
  * @modified    2026-08-20
