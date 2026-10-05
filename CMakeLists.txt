@@ -76,6 +76,7 @@ add_library(${PROJECT_NAME} INTERFACE
     include/ase/utils/fs.hpp
     include/ase/utils/strmatch.hpp
     include/ase/utils/strops.hpp
+    include/ase/utils/uuid.hpp
 )
 add_library(ase::utils ALIAS ${PROJECT_NAME})
 
