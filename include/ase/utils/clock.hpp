@@ -10,14 +10,15 @@
  *              built on C time(), mirroring the blessed
  *              AuthResourceManager::get_wall_time_seconds() pattern. Header-only so every
  *              layer can read coarse real time (rate-limit windows, token-expiry checks,
- *              telemetry) without a link dependency.
+ *              telemetry, UTC day buckets) without a link dependency.
  *
  * @module      ase-utils
  * @layer       0 (Foundation)
  * @category    time/clock
+ * @usecase     usecase:100432 - read wall clock time
  * @created     2026-06-10
- * @modified    2026-08-20
- * @version     1.0.0
+ * @modified    2026-10-13
+ * @version     1.1.0
  */
 
 #include <ctime>
@@ -32,13 +33,11 @@ inline int64_t wall_time_seconds() {
 }
 
 /*
- * THE SAME CLOCK, FINER — FOR A TIMESTAMP SOMEBODY READS (2026-08-20).
+ * THE SAME CLOCK, FINER — FOR A TIMESTAMP SOMEBODY READS.
  *
  * wall_time_seconds() cannot serve a printed timestamp of the form 14:57:03.412: its
  * resolution is the whole second, and the missing three digits are exactly what makes two
- * boot lines distinguishable. Measured in ase-ecs: terminal_utils.cpp builds both of its
- * timestamps as std::chrono::system_clock plus a millisecond remainder, which is 9 of that
- * module's findings and has no other reachable source.
+ * boot lines distinguishable.
  *
  * DO NOT ASSEMBLE THIS FROM THE OTHER TWO. Taking the seconds from wall_time_seconds() and
  * the sub-second part from monotonic_nanos() reads TWO clocks that are not related: the
@@ -56,12 +55,10 @@ inline int64_t wall_time_millis() {
 }
 
 /*
- * THE SECOND CLOCK, AND IT IS NOT THE WALL CLOCK (2026-08-20).
+ * THE SECOND CLOCK, AND IT IS NOT THE WALL CLOCK.
  *
- * STD_CHRONO_FORBIDDEN asks the reader to decide between WALL-CLOCK and SIMULATION time. A
- * measurement across the tree found that the majority wants NEITHER: of 50 clock uses, 5 are
- * std::chrono::system_clock (wall clock, served by wall_time_seconds above) and 45 are
- * steady_clock or high_resolution_clock — code measuring a DURATION.
+ * STD_CHRONO_FORBIDDEN asks the reader to decide between WALL-CLOCK and SIMULATION time. Most
+ * clock uses in the tree want NEITHER: they measure a DURATION.
  *
  * A duration must not be measured with the wall clock, for exactly the reason the rule gives
  * for using it on deadlines: a wall clock can be SET. An NTP correction between two reads
@@ -72,9 +69,8 @@ inline int64_t wall_time_millis() {
  *   duration, timeout, frame or tick time  → monotonic_nanos()
  *   deadline, expiry, timestamp, date      → wall_time_seconds()
  *
- * Nanoseconds is the base unit because the tree needs all four resolutions (measured:
- * 5 nanoseconds, 3 microseconds, 6 milliseconds, 2 seconds). One source plus a named divisor
- * beats four functions that would each be this same call divided by a constant.
+ * Nanoseconds is the base unit because the tree needs all four resolutions. One source plus a
+ * named divisor beats four functions that would each be this same call divided by a constant.
  */
 inline int64_t monotonic_nanos() {
     struct timespec ts {};
@@ -86,5 +82,9 @@ constexpr int64_t NANOS_PER_MICRO  = 1000LL;        // monotonic_nanos() / NANOS
 constexpr int64_t NANOS_PER_MILLI  = 1000000LL;     // monotonic_nanos() / NANOS_PER_MILLI
 constexpr int64_t NANOS_PER_SECOND = 1000000000LL;  // monotonic_nanos() / NANOS_PER_SECOND
 constexpr int64_t MILLIS_PER_SECOND = 1000LL;       // wall_time_millis() split into s and ms
+// THE UTC DAY OF THE WALL CLOCK. Every module that buckets wall time by day (quota windows, uptime and
+// maintenance day rows, retention windows, manifest day indices) divides by this one value; a module
+// constant beside it would be a second home of the same number.
+constexpr int64_t SECONDS_PER_UTC_DAY = 86400LL;    // wall_time_seconds() / SECONDS_PER_UTC_DAY = UTC day index
 
 }  // namespace ase::utils

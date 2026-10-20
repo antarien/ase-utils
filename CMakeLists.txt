@@ -10,8 +10,9 @@ ASE FOUNDATION BUILD CONFIGURATION
 
 @module      ase-utils
 @layer       0 (Foundation)
+@usecase     usecase:100051 - bind a build edge
 @created     2025-12-15
-@modified    2026-09-08
+@modified    2026-10-19
 @version     00.00.24.00024 [init]
 
 CMAKE MODULE COMPLIANCE
@@ -71,6 +72,7 @@ add_library(${PROJECT_NAME} INTERFACE
     Core utility functions for environment, encoding, etc.
     ]]
     include/ase/utils/base64.hpp
+    include/ase/utils/boot_clock.hpp
     include/ase/utils/clock.hpp
     include/ase/utils/dotenv.hpp
     include/ase/utils/fs.hpp
