@@ -10,7 +10,7 @@ ASE FOUNDATION BUILD CONFIGURATION
 
 @module      ase-utils
 @layer       0 (Foundation)
-@usecase     usecase:100051 - bind a build edge
+@usecase     usecase:100051 - resolve module dependencies
 @created     2025-12-15
 @modified    2026-10-19
 @version     00.00.24.00024 [init]
